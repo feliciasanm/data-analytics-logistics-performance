@@ -1,4 +1,4 @@
-# Code League 2020 - Logistics
+# Code League 2020 - Logistics (Performance)
 
 Hi, this is my code for the fifth challenge in [Shopee Code League 2020](https://careers.shopee.sg/codeleague), which is Logistics (Performance), conducted on July 11, 2020. It was categorized under data analytics in the competition. The solution was written in R, using `lubridate` and `data.table` within the final code. Before discussing about the challenge itself and the code, a short background is in order.
 
