@@ -13,7 +13,8 @@ calculateSLA <- function() {
   locations <- c("metro manila", "luzon", "visayas", "mindanao")
   locationSLA <- matrix(c(3, 5, 7, 7, 5, 5, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7), nrow = 4, ncol = 4)
   
-  holiday <- c(1, 8, 15, 22, 25, 29, 30, 31)
+  publicholiday <- c("8/3/2020", "25/3/2020", "30/3/2020", "31/3/2020")
+  publicholiday <- dmy(publicholiday)
   
   # Read the data in
   collist <- c("orderid", "pickup", "firstattempt", "secondattempt", "buyeraddress", "selleraddress")
@@ -22,9 +23,9 @@ calculateSLA <- function() {
   delivery <- fread("delivery_orders_march.csv", header = TRUE, sep = ",", col.names = collist, colClasses = classlist, strip.white = TRUE, stringsAsFactors = FALSE)
   
   # Clean the data
-  delivery[, pickup := day(as_datetime(pickup, tz="Asia/Manila"))]
-  delivery[, firstattempt := day(as_datetime(firstattempt, tz="Asia/Manila"))]
-  delivery[, secondattempt := day(as_datetime(secondattempt, tz="Asia/Manila"))]
+  delivery[, pickup := as_date(as_datetime(pickup, tz="Asia/Manila"))]
+  delivery[, firstattempt := as_date(as_datetime(firstattempt, tz="Asia/Manila"))]
+  delivery[, secondattempt := as_date(as_datetime(secondattempt, tz="Asia/Manila"))]
   delivery[, buyeraddress := tolower(buyeraddress)]
   delivery[, selleraddress := tolower(selleraddress)]
   
@@ -33,6 +34,27 @@ calculateSLA <- function() {
   
   print(one)
   
+  
+  # Find out all relevant holidays
+  firstdate <- c(delivery[order(pickup), pickup][1], 
+                 delivery[order(firstattempt), firstattempt][1],
+                 delivery[order(secondattempt), secondattempt][1])
+  
+  lastdate <- c(delivery[order(-pickup), pickup][1],
+                delivery[order(-firstattempt), firstattempt][1],
+                delivery[order(-secondattempt), secondattempt][1])
+  
+  firstdate <- sort(firstdate)[1]
+  lastdate <- sort(lastdate, decreasing = TRUE)[1]
+  
+  holidayall <- c(publicholiday)
+  
+  while(firstdate <= lastdate) {
+    if (wday(firstdate) == 1) holidayall <- c(holidayall, firstdate)
+    firstdate <- firstdate + days(1)
+  }
+  
+  holidayall <- sort(unique(holidayall))
   
   # Code the addresses into location indexes
   for (locationindex in 1:length(locations)) {
@@ -53,16 +75,20 @@ calculateSLA <- function() {
   
   # Calculate how long each delivery takes
   delivery[, ':=' (firstdelivery = firstattempt - pickup, 
-                   seconddelivery = fifelse(is.na(secondattempt), 0, secondattempt - firstattempt))]
+                   seconddelivery = fifelse(is.na(secondattempt), as.difftime(0, units="days"), secondattempt - firstattempt))]
   
   # Adjust for holidays
-  for (day in holiday) {
-    delivery[, ':=' (firstdelivery = fifelse(day > pickup & day < firstattempt, firstdelivery - 1, firstdelivery),
-                     seconddelivery = fifelse(!is.na(secondattempt) & (day > firstattempt & day < secondattempt), seconddelivery - 1, seconddelivery))]
+  for (day in holidayall) {
+    delivery[, ':=' (firstdelivery = fifelse(day >= pickup & day <= firstattempt, firstdelivery - as.difftime(1, units="days"), firstdelivery),
+                     seconddelivery = fifelse(!is.na(secondattempt) & (day >= firstattempt & day <= secondattempt), seconddelivery - as.difftime(1, units="days"), seconddelivery))]
   }
   
   # Delete columns that are no longer needed
   delivery[, c("firstattempt", "secondattempt", "pickup") := NULL]
+  
+  # Convert the date columns into numeric columns
+  delivery[, firstdelivery := as.numeric(firstdelivery)]
+  delivery[, seconddelivery := as.numeric(seconddelivery)]  
   
   # Calculate the SLA for the route taken by each order
   delivery[, routeSLA := mapply(function(seller, buyer) {locationSLA[seller, buyer]}, selleraddress, buyeraddress)]
@@ -79,7 +105,7 @@ calculateSLA <- function() {
   
   
   # Write the result to csv file
-  write.csv(delivery, "submission-updated.csv", row.names = FALSE, quote = FALSE)
+  write.csv(delivery, "submission-final.csv", row.names = FALSE, quote = FALSE)
   
   print("Summary:")
   print(zero)
@@ -91,7 +117,7 @@ calculateSLA <- function() {
   print(finished)
   
   logfile <- file("SLACalculation.log", "a")
-  logheading <- paste("Updated Script -", nrow(delivery), "rows", "-", as.character(starttime))
+  logheading <- paste("Final Script -", nrow(delivery), "rows", "-", as.character(starttime))
   writeLines(c(logheading, zero, one, two, three, finished, ""), logfile)
   close(logfile)
   
