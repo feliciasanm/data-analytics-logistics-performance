@@ -1,84 +1,98 @@
-SLACalculator <- function() {
+calculateSLA <- function() {
   
   library(lubridate)
-  library(dplyr)
+  
+  zero <- paste("Starting!", now())
+  
+  print(zero)
   
   locations <- c("metro manila", "luzon", "visayas", "mindanao")
-
-  locationvector <- c(3, 5, 7, 7, 5, 5, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7)
-  locationmatrix <- matrix(locationvector, nrow = 4, ncol = 4)
-
+  locationSLA <- matrix(c(3, 5, 7, 7, 5, 5, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7), nrow = 4, ncol = 4)
+  
   holiday <- c(1, 8, 15, 22, 25, 29, 30, 31)
   
+  
+  collist <- c("orderid", "pickup", "firstattempt", "secondattempt", "buyeraddress", "selleraddress")
   classlist <- c("character", "numeric", "numeric", "numeric", "character", "character")
-  data <- read.csv("delivery_orders_march.csv", colClasses = classlist, stringsAsFactors = FALSE)
-  colnames(data) <- c("orderid", "pickup", "firstattempt", "secondattempt", "buyeraddress", "selleraddress")
-  data$pickup <- day(as_datetime(data$pickup, tz="Asia/Manila"))
-  data$firstattempt <- day(as_datetime(data$firstattempt, tz="Asia/Manila"))
-  data$secondattempt <- day(as_datetime(data$secondattempt, tz="Asia/Manila"))
-  data$buyeraddress <- tolower(data$buyeraddress)
-  data$selleraddress <- tolower(data$selleraddress)
   
-  firstattempt <- data$firstattempt
-  secondattempt <- data$secondattempt
-  buyeraddress <- data$buyeraddress
-  selleraddress <- data$selleraddress
+  delivery <- read.csv("delivery_orders_march.csv", col.names = collist, colClasses = classlist, stringsAsFactors = FALSE)
   
-  for (i in 1:nrow(data)) {
-    if (is.na(secondattempt[[i]])) {
-      secondattempt[[i]] <- firstattempt[[i]]
-    }
-    for (j in 1:length(locations)) {
-      if (grepl(paste0(locations[[j]], "$"), buyeraddress[[i]])) {
-        buyeraddress[[i]] <- j  
+  pickup <- day(as_datetime(delivery$pickup, tz="Asia/Manila"))
+  firstattempt <- day(as_datetime(delivery$firstattempt, tz="Asia/Manila"))
+  secondattempt <- day(as_datetime(delivery$secondattempt, tz="Asia/Manila"))
+  buyeraddress <- tolower(delivery$buyeraddress)
+  selleraddress <- tolower(delivery$selleraddress)
+  
+  one <- paste("First Stage Done", now())
+  
+  print(one)
+  
+  for (row in 1:nrow(delivery)) {
+    
+    for (locationindex in 1:length(locations)) {
+      location <- locations[[locationindex]]
+      if (grepl(paste0(location, "$"), buyeraddress[[row]])) {
+        buyeraddress[[row]] <- locationindex  
       }
-      if (grepl(paste0(locations[[j]], "$"), selleraddress[[i]])) {
-        selleraddress[[i]] <- j  
+      if (grepl(paste0(location, "$"), selleraddress[[row]])) {
+        selleraddress[[row]] <- locationindex  
       }
     }
+    
   }
   
-  data$secondattempt <- secondattempt
-  data$buyeraddress <- as.numeric(buyeraddress)
-  data$selleraddress <- as.numeric(selleraddress)  
+  buyeraddress <- as.numeric(buyeraddress)
+  selleraddress <- as.numeric(selleraddress)  
   
-  delivery <- data.frame(orderid = data$orderid, firstdelivery = c(0), seconddelivery = c(0), routeSLA = c(0))
-
-  firstdelivery <- 0
-  seconddelivery <- 0
+  two <- paste("Second Stage Done", now())
   
-  for (i in 1:nrow(delivery)) {
-    first <- data$firstattempt[[i]]
-    second <- data$secondattempt[[i]]
-    pickup <- data$pickup[[i]]
-    
-    firstdelivery <- first - pickup
-    seconddelivery <- second - first
-    
-    for (day in holiday) {
-      if (day > pickup && day < first) {
-        firstdelivery <- firstdelivery - 1
-      }
-      if (day > first && day < second) {
-        seconddelivery <- seconddelivery - 1
-      }
-    }
-    delivery$firstdelivery[[i]] <- firstdelivery
-    delivery$seconddelivery[[i]] <- seconddelivery
-    
-    delivery$routeSLA[[i]] <- locationmatrix[data$selleraddress[[i]], data$buyeraddress[[i]]]
-  }
+  print(two)
   
   result <- data.frame(orderid = delivery$orderid, is_late = c(0))
   
-  for (i in 1:nrow(result)) {
-    if (delivery$firstdelivery[[i]] > delivery$routeSLA[[i]] || delivery$seconddelivery[[i]] > 3) {
-      result$is_late[[i]] <- 1  
+  for (row in 1:nrow(result)) {
+    
+    first <- firstattempt[[row]]
+    second <- secondattempt[[row]]
+    pick <- pickup[[row]]
+    
+    firstdelivery <- first - pick
+    seconddelivery <- if (is.na(second)) {
+      0
+    } else {
+      second-first
     }
+    
+    for (day in holiday) {
+      if (day > pick && day < first) {
+        firstdelivery <- firstdelivery - 1
+      }
+      if (!is.na(second) && (day > first && day < second)) {
+        seconddelivery <- seconddelivery - 1
+      }
+    }
+    
+    routeSLA <- locationSLA[selleraddress[[row]], buyeraddress[[row]]]
+    
+    if (firstdelivery > routeSLA || seconddelivery > 3) {
+      result$is_late[[row]] <- 1  
+    }
+    
+    print(row)
+    
   }
+  
+  three <- paste("Third Stage Done", now())
+  
+  print(three)
   
   write.csv(result, "submission.csv", row.names = FALSE, quote = FALSE)
   
+  print(one)
+  print(two)
+  print(three)
+  print(paste("Finished!", now()))
+  
   result
-
+  
 }
