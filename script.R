@@ -16,7 +16,7 @@ calculateSLA <- function() {
   publicholiday <- c("8/3/2020", "25/3/2020", "30/3/2020", "31/3/2020")
   publicholiday <- dmy(publicholiday)
   
-  # Read the data in
+  # Read the data into R
   collist <- c("orderid", "pickup", "firstattempt", "secondattempt", "buyeraddress", "selleraddress")
   classlist <- c("character", "numeric", "numeric", "numeric", "character", "character")
   
@@ -29,13 +29,14 @@ calculateSLA <- function() {
   delivery[, buyeraddress := tolower(buyeraddress)]
   delivery[, selleraddress := tolower(selleraddress)]
   
-  
+  # First Stage is about reading and cleaning data in preparation
+  # (explained in comments in order to not modify the code)
   one <- paste("First Stage Done", now())
   
   print(one)
   
   
-  # Find out all relevant holidays
+  # Find out all relevant holidays (including public holidays and Sundays)
   firstdate <- c(delivery[order(pickup), pickup][1], 
                  delivery[order(firstattempt), firstattempt][1],
                  delivery[order(secondattempt), secondattempt][1])
@@ -67,7 +68,8 @@ calculateSLA <- function() {
   delivery[, buyeraddress := as.numeric(buyeraddress)]
   delivery[, selleraddress := as.numeric(selleraddress)]  
   
-  
+  # Second Stage is about processing the data to make calculations easier after this
+  # (explained in comments in order to not modify the code)
   two <- paste("Second Stage Done", now())
   
   print(two)
@@ -99,6 +101,8 @@ calculateSLA <- function() {
   # Clean up the data.table to its final form
   delivery[, c("buyeraddress", "selleraddress", "firstdelivery", "seconddelivery", "routeSLA") := NULL]
   
+  # Third Stage is about calculating and arranging the result to its final form
+  # (explained in comments in order to not modify the code)
   three <- paste("Third Stage Done", now())
   
   print(three)
@@ -116,6 +120,7 @@ calculateSLA <- function() {
   finished <- paste("Finished!", now()) 
   print(finished)
   
+  # The log file will contain information about the script's execution
   logfile <- file("SLACalculation.log", "a")
   logheading <- paste("Final Script -", nrow(delivery), "rows", "-", as.character(starttime))
   writeLines(c(logheading, zero, one, two, three, finished, ""), logfile)

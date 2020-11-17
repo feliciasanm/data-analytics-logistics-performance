@@ -95,6 +95,3 @@ I like this challenge a lot, as it had several tricks that I did not perceive at
     Therefore, on later iterations, I sprinkled print statements which told me which stage that the code was currently doing. Not only it reassured me that the code was doing okay, it also let me know exactly how long each stage and the entire calculation took, which was nice to watch as I made the code faster later :)
       
 The challenges are quite exciting to do, and I look forward to join similar competitions in the future!
-
-## To Do
-* Adding comments to the code
